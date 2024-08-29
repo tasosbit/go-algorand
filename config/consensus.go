@@ -1560,8 +1560,21 @@ func initConsensusProtocols() {
 	vAlpha4.ApprovedUpgrades[protocol.ConsensusVAlpha5] = 10000
 
 	// vFNetX are like vAlphaX but for AF's FNet
-	// vFnet1
-	vFnet1 := vFuture
+	// vFnet1 values are a point-in-time vFuture snapshot
+	vFnet1 := v39
+	vFnet1.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
+	vFnet1.LogicSigVersion = 11
+	vFnet1.Payouts.Enabled = true
+	vFnet1.Payouts.Percent = 75
+	vFnet1.Payouts.GoOnlineFee = 2_000_000
+	vFnet1.Payouts.MinBalance = 30_000_000_000
+	vFnet1.Payouts.MaxBalance = 70_000_000_000_000
+	vFnet1.Payouts.MaxMarkAbsent = 32
+	vFnet1.Payouts.ChallengeInterval = 1000
+	vFnet1.Payouts.ChallengeGracePeriod = 200
+	vFnet1.Payouts.ChallengeBits = 5
+	vFnet1.Bonus.BaseAmount = 10_000_000
+	vFnet1.Bonus.DecayInterval = 250_000
 	Consensus[protocol.ConsensusVFnet1] = vFnet1
 }
 
