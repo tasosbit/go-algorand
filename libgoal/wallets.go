@@ -46,7 +46,7 @@ func (c *Client) CreateWallet(name []byte, password []byte, mdk crypto.MasterDer
 }
 
 // RenameWallet renames a kmd wallet
-func (c *Client) RenameWallet(wid []byte, name []byte, password []byte) error {
+func (c *Client) RenameWallet(wh []byte, name []byte, password []byte) error {
 	// Pull the list of all wallets from kmd
 	kmd, err := c.ensureKmdClient()
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *Client) RenameWallet(wid []byte, name []byte, password []byte) error {
 	}
 
 	// Rename the wallet
-	_, err = kmd.RenameWallet(wid, name, password)
+	_, err = kmd.RenameWallet(wh, name, password)
 
 	if err != nil {
 		return err

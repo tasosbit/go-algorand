@@ -238,7 +238,16 @@ var renameWalletCmd = &cobra.Command{
 				walletPassword = ensurePassword()
 			}
 
-			err = client.RenameWallet(wid, newWalletName, walletPassword)
+			// Get a wallet handle token
+			wh, err := client.GetWalletHandleToken(wid, walletPassword)
+			if err != nil {
+				reportErrorf(errorCouldntInitializeWallet, err)
+			}
+
+			// Invalidate the handle when we're done with it
+			defer client.ReleaseWalletHandle(wh)
+
+			err = client.RenameWallet(wh, newWalletName, walletPassword)
 			if err != nil {
 				reportErrorf(errorCouldntRenameWallet, err)
 			}

@@ -85,9 +85,9 @@ type APIV1POSTWalletRenewRequest struct {
 type APIV1POSTWalletRenameRequest struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
-	WalletID       string `json:"wallet_id"`
-	WalletPassword string `json:"wallet_password"`
-	NewWalletName  string `json:"wallet_name"`
+	WalletHandleToken string `json:"wallet_handle_token"`
+	WalletPassword    string `json:"wallet_password"`
+	NewWalletName     string `json:"wallet_name"`
 }
 
 // APIV1POSTWalletInfoRequest is the request for `POST /v1/wallet/info`

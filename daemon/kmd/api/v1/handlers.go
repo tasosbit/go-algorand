@@ -485,10 +485,10 @@ func postWalletRenameHandler(ctx reqContext, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Fetch the wallet
-	wallet, err := driver.FetchWalletByID([]byte(req.WalletID))
+	// Fetch the wallet from the WalletHandleToken
+	wallet, _, err := ctx.sm.AuthWithWalletHandleToken([]byte(req.WalletHandleToken))
 	if err != nil {
-		errorResponse(w, http.StatusBadRequest, err)
+		errorResponse(w, http.StatusUnauthorized, err)
 		return
 	}
 
