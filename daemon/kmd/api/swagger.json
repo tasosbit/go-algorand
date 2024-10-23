@@ -1345,9 +1345,9 @@
       "description": "APIV1POSTWalletRenameRequest is the request for `POST /v1/wallet/rename`",
       "type": "object",
       "properties": {
-        "wallet_id": {
+        "wallet_handle_token": {
           "type": "string",
-          "x-go-name": "WalletID"
+          "x-go-name": "WalletHandleToken"
         },
         "wallet_name": {
           "type": "string",
