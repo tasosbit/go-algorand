@@ -103,7 +103,7 @@ func spinNetwork(t *testing.T, nodesCount int, cfg config.Local) ([]*networkImpl
 			break
 		}
 	}
-	log.Infof("network established, %d nodes connected in %s", nodesCount, time.Now().Sub(start).String())
+	log.Infof("network established, %d nodes connected in %s", nodesCount, time.Since(start).String())
 	return networkImpls, msgCounters
 }
 
@@ -362,6 +362,7 @@ func testNetworkImplFull(t *testing.T, nodesCount int) {
 	// which is a different test of logic that agremeent needs to
 	// deal with.
 	cfg := config.GetDefaultLocal()
+	cfg.MaxConnectionsPerIP = nodesCount
 	cfg.AgreementIncomingVotesQueueLength = 100
 	cfg.AgreementIncomingProposalsQueueLength = 100
 	cfg.AgreementIncomingBundlesQueueLength = 100

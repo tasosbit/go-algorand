@@ -29,6 +29,7 @@ import (
 	"github.com/algorand/go-algorand/data/bookkeeping"
 	"github.com/algorand/go-algorand/data/committee"
 	"github.com/algorand/go-algorand/data/transactions"
+	"github.com/algorand/go-algorand/data/transactions/logic"
 	"github.com/algorand/go-algorand/data/transactions/verify"
 	"github.com/algorand/go-algorand/data/txntest"
 	"github.com/algorand/go-algorand/ledger/eval"
@@ -91,6 +92,7 @@ func nextBlock(t testing.TB, ledger *Ledger) *eval.BlockEvaluator {
 	eval, err := eval.StartEvaluator(ledger, nextHdr, eval.EvaluatorOptions{
 		Generate: true,
 		Validate: true, // Do the complete checks that a new txn would be subject to
+		Tracer:   logic.EvalErrorDetailsTracer{},
 	})
 	require.NoError(t, err)
 	return eval
@@ -129,7 +131,7 @@ func txn(t testing.TB, ledger *Ledger, eval *eval.BlockEvaluator, txn *txntest.T
 		}
 		return
 	}
-	require.True(t, len(problem) == 0 || problem[0] == "")
+	require.True(t, len(problem) == 0 || problem[0] == "", "Transaction did not fail. Expected: %v", problem)
 }
 
 func txgroup(t testing.TB, ledger *Ledger, eval *eval.BlockEvaluator, txns ...*txntest.Txn) error {
@@ -146,10 +148,11 @@ func txgroup(t testing.TB, ledger *Ledger, eval *eval.BlockEvaluator, txns ...*t
 // inspection. Proposer is optional - if unset, blocks will be finished with
 // ZeroAddress proposer.
 func endBlock(t testing.TB, ledger *Ledger, eval *eval.BlockEvaluator, proposer ...basics.Address) *ledgercore.ValidatedBlock {
-	ub, err := eval.GenerateBlock(nil)
+	// pass proposers to GenerateBlock, if provided
+	ub, err := eval.GenerateBlock(proposer)
 	require.NoError(t, err)
 
-	// We fake some thigns that agreement would do, like setting proposer
+	// We fake some things that agreement would do, like setting proposer
 	validatedBlock := ledgercore.MakeValidatedBlock(ub.UnfinishedBlock(), ub.UnfinishedDeltas())
 	gvb := &validatedBlock
 

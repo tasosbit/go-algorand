@@ -28,7 +28,6 @@ import (
 	"github.com/algorand/go-algorand/data/transactions"
 	"github.com/algorand/go-algorand/ledger/ledgercore"
 	"github.com/algorand/go-algorand/protocol"
-	"golang.org/x/exp/maps"
 )
 
 //   ___________________
@@ -47,6 +46,7 @@ type roundCowParent interface {
 	// lookup retrieves agreement data about an address, querying the ledger if necessary.
 	lookupAgreement(basics.Address) (basics.OnlineAccountData, error)
 	onlineStake() (basics.MicroAlgos, error)
+	knockOfflineCandidates() (map[basics.Address]basics.OnlineAccountData, error)
 
 	// lookupAppParams, lookupAssetParams, lookupAppLocalState, and lookupAssetHolding retrieve data for a given address and ID.
 	// If cacheOnly is set, the ledger DB will not be queried, and only the cache will be consulted.
@@ -190,6 +190,10 @@ func (cb *roundCowState) lookup(addr basics.Address) (data ledgercore.AccountDat
 // maintain a local value because it cannot be modified by transactions.
 func (cb *roundCowState) lookupAgreement(addr basics.Address) (data basics.OnlineAccountData, err error) {
 	return cb.lookupParent.lookupAgreement(addr)
+}
+
+func (cb *roundCowState) knockOfflineCandidates() (map[basics.Address]basics.OnlineAccountData, error) {
+	return cb.lookupParent.knockOfflineCandidates()
 }
 
 func (cb *roundCowState) lookupAppParams(addr basics.Address, aidx basics.AppIndex, cacheOnly bool) (ledgercore.AppParamsDelta, bool, error) {
@@ -352,9 +356,9 @@ func (cb *roundCowState) reset() {
 	cb.proto = config.ConsensusParams{}
 	cb.mods.Reset()
 	cb.txnCount = 0
-	maps.Clear(cb.sdeltas)
+	clear(cb.sdeltas)
 	cb.compatibilityMode = false
-	maps.Clear(cb.compatibilityGetKeyCache)
+	clear(cb.compatibilityGetKeyCache)
 	cb.prevTotals = ledgercore.AccountTotals{}
 	cb.feesCollected = basics.MicroAlgos{}
 }
