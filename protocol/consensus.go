@@ -255,6 +255,9 @@ const ConsensusVFnet2 = ConsensusVersion("fnet2")
 // ConsensusVFnet3 disables challenges - without heartbeats, participating accounts are being evicted
 const ConsensusVFnet3 = ConsensusVersion("fnet3")
 
+// ConsensusVFnet4 re-introduces challenges & code brings heartbeats
+const ConsensusVFnet4 = ConsensusVersion("fnet4")
+
 // !!! ********************* !!!
 // !!! *** Please update ConsensusCurrentVersion when adding new protocol versions *** !!!
 // !!! ********************* !!!

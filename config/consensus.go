@@ -1601,6 +1601,12 @@ func initConsensusProtocols() {
 	vFnet3.Payouts.ChallengeInterval = 0
 	Consensus[protocol.ConsensusVFnet3] = vFnet3
 	vFnet2.ApprovedUpgrades[protocol.ConsensusVFnet3] = 10000
+
+	// vFnet4: challenges and heartbeats 
+	vFnet4 := vFnet1
+	vFnet4.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
+	Consensus[protocol.ConsensusVFnet4] = vFnet4
+	vFnet3.ApprovedUpgrades[protocol.ConsensusVFnet4] = 10000
 }
 
 // ApplyShorterUpgradeRoundsForDevNetworks applies a shorter upgrade round time for the Devnet and Betanet networks.
