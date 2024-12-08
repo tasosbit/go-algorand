@@ -113,8 +113,12 @@ type ConsensusParams struct {
 	EnableAppCostPooling bool
 
 	// EnableLogicSigCostPooling specifies LogicSig budgets are pooled across a
-	// group. The total available is len(group) * LogicSigMaxCost)
+	// group. The total available is len(group) * LogicSigMaxCost
 	EnableLogicSigCostPooling bool
+
+	// EnableLogicSigSizePooling specifies LogicSig sizes are pooled across a
+	// group. The total available is len(group) * LogicSigMaxSize
+	EnableLogicSigSizePooling bool
 
 	// RewardUnit specifies the number of MicroAlgos corresponding to one reward
 	// unit.
@@ -228,7 +232,7 @@ type ConsensusParams struct {
 	// 0 for no support, otherwise highest version supported
 	LogicSigVersion uint64
 
-	// len(LogicSig.Logic) + len(LogicSig.Args[*]) must be less than this
+	// len(LogicSig.Logic) + len(LogicSig.Args[*]) must be less than this (unless pooling is enabled)
 	LogicSigMaxSize uint64
 
 	// sum of estimated op cost must be less than this
@@ -540,6 +544,9 @@ type ConsensusParams struct {
 	// occur, extra funds need to be put into the FeeSink.  The bonus amount
 	// decays exponentially.
 	Bonus BonusPlan
+
+	// Heartbeat support
+	Heartbeat bool
 }
 
 // ProposerPayoutRules puts several related consensus parameters in one place. The same
@@ -765,7 +772,7 @@ func checkSetAllocBounds(p ConsensusParams) {
 	checkSetMax(p.MaxAppProgramLen, &MaxStateDeltaKeys)
 	checkSetMax(p.MaxAppProgramLen, &MaxEvalDeltaAccounts)
 	checkSetMax(p.MaxAppProgramLen, &MaxAppProgramLen)
-	checkSetMax(int(p.LogicSigMaxSize), &MaxLogicSigMaxSize)
+	checkSetMax((int(p.LogicSigMaxSize) * p.MaxTxGroupSize), &MaxLogicSigMaxSize)
 	checkSetMax(p.MaxTxnNoteBytes, &MaxTxnNoteBytes)
 	checkSetMax(p.MaxTxGroupSize, &MaxTxGroupSize)
 	// MaxBytesKeyValueLen is max of MaxAppKeyLen and MaxAppBytesValueLen
@@ -1512,8 +1519,10 @@ func initConsensusProtocols() {
 
 	vFuture.LogicSigVersion = 11 // When moving this to a release, put a new higher LogicSigVersion here
 
+	vFuture.EnableLogicSigSizePooling = true
+
 	vFuture.Payouts.Enabled = true
-	vFuture.Payouts.Percent = 75
+	vFuture.Payouts.Percent = 50
 	vFuture.Payouts.GoOnlineFee = 2_000_000         // 2 algos
 	vFuture.Payouts.MinBalance = 30_000_000_000     // 30,000 algos
 	vFuture.Payouts.MaxBalance = 70_000_000_000_000 // 70M algos
@@ -1524,7 +1533,9 @@ func initConsensusProtocols() {
 
 	vFuture.Bonus.BaseAmount = 10_000_000 // 10 Algos
 	// 2.9 sec rounds gives about 10.8M rounds per year.
-	vFuture.Bonus.DecayInterval = 250_000 // .99^(10.8/0.25) ~ .648. So 35% decay per year
+	vFuture.Bonus.DecayInterval = 1_000_000 // .99^(10.8M/1M) ~ .897. So ~10% decay per year
+
+	vFuture.Heartbeat = true
 
 	Consensus[protocol.ConsensusFuture] = vFuture
 
@@ -1590,6 +1601,29 @@ func initConsensusProtocols() {
 	vFnet3.Payouts.ChallengeInterval = 0
 	Consensus[protocol.ConsensusVFnet3] = vFnet3
 	vFnet2.ApprovedUpgrades[protocol.ConsensusVFnet3] = 10000
+
+	// vFnet4: challenges and heartbeats 
+	vFnet4 := vFnet1
+	vFnet4.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
+	Consensus[protocol.ConsensusVFnet4] = vFnet4
+	vFnet3.ApprovedUpgrades[protocol.ConsensusVFnet4] = 10000
+}
+
+// ApplyShorterUpgradeRoundsForDevNetworks applies a shorter upgrade round time for the Devnet and Betanet networks.
+// This function should not take precedence over settings loaded via `PreloadConfigurableConsensusProtocols`.
+func ApplyShorterUpgradeRoundsForDevNetworks(id protocol.NetworkID) {
+	if id == Betanet || id == Devnet {
+		// Go through all approved upgrades and set to the MinUpgradeWaitRounds valid where MinUpgradeWaitRounds is set
+		for _, p := range Consensus {
+			if p.ApprovedUpgrades != nil {
+				for v := range p.ApprovedUpgrades {
+					if p.MinUpgradeWaitRounds > 0 {
+						p.ApprovedUpgrades[v] = p.MinUpgradeWaitRounds
+					}
+				}
+			}
+		}
+	}
 }
 
 // Global defines global Algorand protocol parameters which should not be overridden.
