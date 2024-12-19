@@ -224,10 +224,13 @@ func txnGroupBatchPrep(stxs []transactions.SignedTxn, contextHdr *bookkeeping.Bl
 		feesPaid = basics.AddSaturate(feesPaid, stxn.Txn.Fee.Raw)
 		lSigPooledSize += stxn.Lsig.Len()
 		if stxn.Txn.Type == protocol.StateProofTx {
+			// State proofs are free, bail before incrementing
 			continue
 		}
 		if stxn.Txn.Type == protocol.HeartbeatTx && stxn.Txn.Group.IsZero() {
-			// in apply.Heartbeat, we further confirm that the heartbeat is for a challenged node
+			// In apply.Heartbeat, we further confirm that the heartbeat is for
+			// a challenged account. Such heartbeats are free, bail before
+			// incrementing
 			continue
 		}
 		minFeeCount++
@@ -308,6 +311,11 @@ func stxnCoreChecks(gi int, groupCtx *GroupContext, batchVerifier crypto.BatchVe
 	sigType, err := checkTxnSigTypeCounts(s, gi)
 	if err != nil {
 		return err
+	}
+
+	if s.Txn.Type == protocol.HeartbeatTx {
+		id := basics.OneTimeIDForRound(s.Txn.LastValid, s.Txn.HbKeyDilution)
+		s.Txn.HbProof.BatchPrep(s.Txn.HbVoteID, id, s.Txn.HbSeed, batchVerifier)
 	}
 
 	switch sigType {

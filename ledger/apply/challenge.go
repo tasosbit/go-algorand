@@ -17,11 +17,11 @@
 package apply
 
 import (
+	"bytes"
 	"math/bits"
 
 	"github.com/algorand/go-algorand/config"
 	"github.com/algorand/go-algorand/data/basics"
-	"github.com/algorand/go-algorand/data/bookkeeping"
 	"github.com/algorand/go-algorand/data/committee"
 )
 
@@ -44,12 +44,8 @@ type challenge struct {
 	bits int
 }
 
-type headerSource interface {
-	BlockHdr(round basics.Round) (bookkeeping.BlockHeader, error)
-}
-
 // FindChallenge returns the Challenge that was last issued if it's in the period requested.
-func FindChallenge(rules config.ProposerPayoutRules, current basics.Round, headers headerSource, period ChallengePeriod) challenge {
+func FindChallenge(rules config.ProposerPayoutRules, current basics.Round, headers hdrProvider, period ChallengePeriod) challenge {
 	// are challenges active?
 	interval := basics.Round(rules.ChallengeInterval)
 	if rules.ChallengeInterval == 0 || current < interval {
@@ -102,12 +98,11 @@ func bitsMatch(a, b []byte, n int) bool {
 		return false
 	}
 
-	// Compare entire bytes when n is bigger than 8
-	for i := 0; i < n/8; i++ {
-		if a[i] != b[i] {
-			return false
-		}
+	// Compare entire bytes when we care about enough bits
+	if !bytes.Equal(a[:n/8], b[:n/8]) {
+		return false
 	}
+
 	remaining := n % 8
 	if remaining == 0 {
 		return true

@@ -1168,7 +1168,6 @@ func TestEvalFunctionForExpiredAccounts(t *testing.T) {
 	for i := uint64(0); i < uint64(targetRound); i++ {
 		vb := l.endBlock(t, blkEval, recvAddr)
 		blkEval = l.nextBlock(t)
-		//require.Empty(t, vb.Block().ExpiredParticipationAccounts)
 		for _, acct := range vb.Block().ExpiredParticipationAccounts {
 			if acct == recvAddr {
 				// won't happen, because recvAddr was proposer
@@ -1336,6 +1335,7 @@ func TestAbsenteeChecks(t *testing.T) {
 		crypto.RandBytes(tmp.StateProofID[:])
 		crypto.RandBytes(tmp.SelectionID[:])
 		crypto.RandBytes(tmp.VoteID[:])
+		tmp.IncentiveEligible = true // make suspendable
 		tmp.VoteFirstValid = 1
 		tmp.VoteLastValid = 1500 // large enough to avoid EXPIRATION, so we can see SUSPENSION
 		switch i {
@@ -1345,16 +1345,25 @@ func TestAbsenteeChecks(t *testing.T) {
 			tmp.LastProposed = 1 // we want addrs[2] to be suspended earlier than others
 		case 3:
 			tmp.LastProposed = 1 // we want addrs[3] to be a proposer, and never suspend itself
+		case 5:
+			tmp.LastHeartbeat = 1 // like addr[1] but !IncentiveEligible, no suspend
+			tmp.IncentiveEligible = false
+		case 6:
+			tmp.LastProposed = 1 // like addr[2] but !IncentiveEligible, no suspend
+			tmp.IncentiveEligible = false
 		default:
-			if i < 10 { // make the other 8 genesis wallets unsuspendable
-				if i%2 == 0 {
+			if i < 10 { // make 0,3,4,7,8,9 unsuspendable
+				switch i % 3 {
+				case 0:
 					tmp.LastProposed = 1200
-				} else {
+				case 1:
 					tmp.LastHeartbeat = 1200
+				case 2:
+					tmp.IncentiveEligible = false
 				}
 			} else {
-				// ensure non-zero balance for new accounts, but a small balance
-				// so they will not be absent, just challenged.
+				// ensure non-zero balance for the new accounts, but a small
+				// balance so they will not be absent, just challenged.
 				tmp.MicroAlgos = basics.MicroAlgos{Raw: 1_000_000}
 				tmp.LastHeartbeat = 1 // non-zero allows suspensions
 			}
@@ -1385,6 +1394,7 @@ func TestAbsenteeChecks(t *testing.T) {
 
 		switch vb.Block().Round() {
 		case 202: // 2 out of 10 genesis accounts are now absent
+			require.Len(t, vb.Block().AbsentParticipationAccounts, 2, addrs)
 			require.Contains(t, vb.Block().AbsentParticipationAccounts, addrs[1])
 			require.Contains(t, vb.Block().AbsentParticipationAccounts, addrs[2])
 		case 1000:

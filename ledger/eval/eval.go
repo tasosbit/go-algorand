@@ -658,7 +658,7 @@ func (cs *roundCowState) autoHeartbeat(before, after ledgercore.AccountData) led
 
 	// Adjust only if balance has doubled
 	twice, o := basics.OMul(before.MicroAlgos.Raw, 2)
-	if !o && twice < after.MicroAlgos.Raw {
+	if !o && after.MicroAlgos.Raw >= twice {
 		lookback := agreement.BalanceLookback(cs.ConsensusParams())
 		after.LastHeartbeat = cs.Round() + lookback
 	}
@@ -1310,7 +1310,7 @@ func (eval *BlockEvaluator) applyTransaction(tx transactions.Transaction, cow *r
 		err = apply.StateProof(tx.StateProofTxnFields, tx.Header.FirstValid, cow, eval.validate)
 
 	case protocol.HeartbeatTx:
-		err = apply.Heartbeat(tx.HeartbeatTxnFields, tx.Header, cow, cow, cow.Round())
+		err = apply.Heartbeat(*tx.HeartbeatTxnFields, tx.Header, cow, cow, cow.Round())
 
 	default:
 		err = fmt.Errorf("unknown transaction type %v", tx.Type)
@@ -1632,13 +1632,15 @@ func (eval *BlockEvaluator) proposerPayout() (basics.MicroAlgos, error) {
 }
 
 // generateKnockOfflineAccountsList creates the lists of expired or absent
-// participation accounts by traversing over the modified accounts in the state
-// deltas and testing if any of them needs to be reset/suspended. Expiration
-// takes precedence - if an account is expired, it should be knocked offline and
-// key material deleted. If it is only suspended, the key material will remain.
+// participation accounts to be suspended. It examines the accounts that appear
+// in the current block and high-stake accounts being tracked for state
+// proofs. Expiration takes precedence - if an account is expired, it should be
+// knocked offline and key material deleted. If it is only suspended, the key
+// material will remain.
 //
-// Different ndoes may propose different list of addresses based on node state.
-// Block validators only check whether ExpiredParticipationAccounts or
+// Different nodes may propose different list of addresses based on node state,
+// the protocol does not enforce which accounts must appear.  Block validators
+// only check whether ExpiredParticipationAccounts or
 // AbsentParticipationAccounts meet the criteria for expiration or suspension,
 // not whether the lists are complete.
 //
@@ -1724,7 +1726,7 @@ func (eval *BlockEvaluator) generateKnockOfflineAccountsList(participating []bas
 			continue // don't check accounts that are being closed
 		}
 
-		if _, ok := partAddrs[accountAddr]; ok {
+		if partAddrs.Contains(accountAddr) {
 			continue // don't check our own participation accounts
 		}
 
@@ -1740,7 +1742,7 @@ func (eval *BlockEvaluator) generateKnockOfflineAccountsList(participating []bas
 					updates.ExpiredParticipationAccounts,
 					accountAddr,
 				)
-				continue // if marking expired, do not also suspend
+				continue // if marking expired, do not consider suspension
 			}
 		}
 
@@ -1750,7 +1752,7 @@ func (eval *BlockEvaluator) generateKnockOfflineAccountsList(participating []bas
 			continue // no more room (don't break the loop, since we may have more expiries)
 		}
 
-		if acctData.Status == basics.Online {
+		if acctData.Status == basics.Online && acctData.IncentiveEligible {
 			lastSeen := max(acctData.LastProposed, acctData.LastHeartbeat)
 			oad, lErr := eval.state.lookupAgreement(accountAddr)
 			if lErr != nil {
@@ -1779,12 +1781,13 @@ func isAbsent(totalOnlineStake basics.MicroAlgos, acctStake basics.MicroAlgos, l
 	}
 	// See if the account has exceeded their expected observation interval.
 	allowableLag, o := basics.Muldiv(absentFactor, totalOnlineStake.Raw, acctStake.Raw)
-	if o {
-		// This can't happen with 10B total possible stake and a reasonable
-		// absentFactor, but if we imagine another algorand network with huge
-		// possible stake, this seems reasonable.
-		allowableLag = math.MaxInt64 / acctStake.Raw
+	// just return false for overflow or a huge allowableLag. It implies the lag
+	// is longer that any network could be around, and computing with wraparound
+	// is annoying.
+	if o || allowableLag > math.MaxUint32 {
+		return false
 	}
+
 	return lastSeen+basics.Round(allowableLag) < current
 }
 
@@ -1860,7 +1863,7 @@ func (eval *BlockEvaluator) validateAbsentOnlineAccounts() error {
 	if err != nil {
 		logging.Base().Errorf("unable to fetch online stake, can't check knockoffs: %v", err)
 		// I suppose we can still return successfully if the absent list is empty.
-		if len(eval.block.ParticipationUpdates.AbsentParticipationAccounts) > 0 {
+		if suspensionCount > 0 {
 			return err
 		}
 	}
@@ -1881,6 +1884,9 @@ func (eval *BlockEvaluator) validateAbsentOnlineAccounts() error {
 		}
 		if acctData.MicroAlgos.IsZero() {
 			return fmt.Errorf("proposed absent account %v with zero algos", accountAddr)
+		}
+		if !acctData.IncentiveEligible {
+			return fmt.Errorf("proposed absent account %v not IncentiveEligible", accountAddr)
 		}
 
 		oad, lErr := eval.state.lookupAgreement(accountAddr)

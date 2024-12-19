@@ -43,9 +43,10 @@ type mockedLedger struct {
 	waiters map[basics.Round]chan struct{}
 	history []table
 	hdr     bookkeeping.BlockHeader
+	t       *testing.T
 }
 
-func newMockedLedger() mockedLedger {
+func newMockedLedger(t *testing.T) mockedLedger {
 	return mockedLedger{
 		waiters: make(map[basics.Round]chan struct{}),
 		history: []table{nil}, // some genesis accounts could go here
@@ -87,13 +88,24 @@ func (l *mockedLedger) WaitMem(r basics.Round) chan struct{} {
 
 // BlockHdr allows the service access to consensus values
 func (l *mockedLedger) BlockHdr(r basics.Round) (bookkeeping.BlockHeader, error) {
-	if r > l.LastRound() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if r > l.lastRound() {
 		return bookkeeping.BlockHeader{}, fmt.Errorf("%d is beyond current block (%d)", r, l.LastRound())
 	}
 	// return the template hdr, with round
 	hdr := l.hdr
 	hdr.Round = r
 	return hdr, nil
+}
+
+// setSeed allows the mock to return a specific seed
+func (l *mockedLedger) setSeed(seed committee.Seed) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.hdr.Seed = seed
 }
 
 func (l *mockedLedger) addBlock(delta table) error {
@@ -105,7 +117,7 @@ func (l *mockedLedger) addBlock(delta table) error {
 	for r, ch := range l.waiters {
 		switch {
 		case r < l.lastRound():
-			fmt.Printf("%d < %d\n", r, l.lastRound())
+			l.t.Logf("%d < %d", r, l.lastRound())
 			panic("why is there a waiter for an old block?")
 		case r == l.lastRound():
 			close(ch)
@@ -164,11 +176,14 @@ func (am *mockedAcctManager) addParticipant(addr basics.Address, otss *crypto.On
 	})
 }
 
-type txnSink [][]transactions.SignedTxn
+type txnSink struct {
+	t    *testing.T
+	txns [][]transactions.SignedTxn
+}
 
 func (ts *txnSink) BroadcastInternalSignedTxGroup(group []transactions.SignedTxn) error {
-	fmt.Printf("sinking %+v\n", group[0].Txn.Header)
-	*ts = append(*ts, group)
+	ts.t.Logf("sinking %+v", group[0].Txn.Header)
+	ts.txns = append(ts.txns, group)
 	return nil
 }
 
@@ -177,8 +192,8 @@ func TestStartStop(t *testing.T) {
 	t.Parallel()
 
 	a := require.New(t)
-	sink := txnSink{}
-	ledger := newMockedLedger()
+	sink := txnSink{t: t}
+	ledger := newMockedLedger(t)
 	s := NewService(&mockedAcctManager{}, &ledger, &sink, logging.TestingLog(t))
 	a.NotNil(s)
 	a.NoError(ledger.addBlock(nil))
@@ -199,8 +214,8 @@ func TestHeartbeatOnlyWhenChallenged(t *testing.T) {
 	t.Parallel()
 
 	a := require.New(t)
-	sink := txnSink{}
-	ledger := newMockedLedger()
+	sink := txnSink{t: t}
+	ledger := newMockedLedger(t)
 	participants := &mockedAcctManager{}
 	s := NewService(participants, &ledger, &sink, logging.TestingLog(t))
 	s.Start()
@@ -212,12 +227,11 @@ func TestHeartbeatOnlyWhenChallenged(t *testing.T) {
 
 	a.NoError(ledger.addBlock(table{joe: acct}))
 	ledger.waitFor(s, a)
-	a.Empty(sink)
+	a.Empty(sink.txns)
 
-	// now they are online, but not challenged, so no heartbeat
-	acct.Status = basics.Online
-	acct.VoteKeyDilution = 100
-	startBatch := basics.OneTimeIDForRound(ledger.LastRound(), acct.VoteKeyDilution).Batch
+	// make "part keys" and install them
+	kd := uint64(100)
+	startBatch := basics.OneTimeIDForRound(ledger.LastRound(), kd).Batch
 	const batches = 50 // gives 50 * kd rounds = 5000
 	otss1 := crypto.GenerateOneTimeSignatureSecrets(startBatch, batches)
 	otss2 := crypto.GenerateOneTimeSignatureSecrets(startBatch, batches)
@@ -225,29 +239,39 @@ func TestHeartbeatOnlyWhenChallenged(t *testing.T) {
 	participants.addParticipant(joe, otss2) // Simulate overlapping part keys, so Keys() returns both
 	participants.addParticipant(mary, otss1)
 
+	// now they are online, but not challenged, so no heartbeat
+	acct.Status = basics.Online
+	acct.VoteKeyDilution = kd
 	acct.VoteID = otss1.OneTimeSignatureVerifier
 	a.NoError(ledger.addBlock(table{joe: acct, mary: acct})) // in effect, "keyreg" with otss1
-	a.Empty(sink)
+	ledger.waitFor(s, a)
+	a.Empty(sink.txns)
 
 	// now we have to make it seem like joe has been challenged. We obtain the
 	// payout rules to find the first challenge round, skip forward to it, then
 	// go forward half a grace period. Only then should the service heartbeat
+	ledger.setSeed(committee.Seed{0xc8}) // share 5 bits with 0xcc
 	hdr, err := ledger.BlockHdr(ledger.LastRound())
-	ledger.hdr.Seed = committee.Seed{0xc8} // share 5 bits with 0xcc
 	a.NoError(err)
 	rules := config.Consensus[hdr.CurrentProtocol].Payouts
 	for ledger.LastRound() < basics.Round(rules.ChallengeInterval+rules.ChallengeGracePeriod/2) {
 		a.NoError(ledger.addBlock(table{}))
 		ledger.waitFor(s, a)
-		a.Empty(sink)
+		a.Empty(sink.txns)
 	}
 
 	a.NoError(ledger.addBlock(table{joe: acct}))
 	ledger.waitFor(s, a)
-	a.Len(sink, 1) // only one heartbeat (for joe) despite having two part records
-	a.Len(sink[0], 1)
-	a.Equal(sink[0][0].Txn.Type, protocol.HeartbeatTx)
-	a.Equal(sink[0][0].Txn.HbAddress, joe)
+	a.Empty(sink.txns) // Just kidding, no heartbeat yet, joe isn't eligible
+
+	acct.IncentiveEligible = true
+	a.NoError(ledger.addBlock(table{joe: acct}))
+	ledger.waitFor(s, a)
+	// challenge is already in place, it counts immediately, so service will heartbeat
+	a.Len(sink.txns, 1) // only one heartbeat (for joe) despite having two part records
+	a.Len(sink.txns[0], 1)
+	a.Equal(sink.txns[0][0].Txn.Type, protocol.HeartbeatTx)
+	a.Equal(sink.txns[0][0].Txn.HbAddress, joe)
 
 	s.Stop()
 }

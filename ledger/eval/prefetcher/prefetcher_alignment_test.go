@@ -1449,7 +1449,8 @@ func TestEvaluatorPrefetcherAlignmentHeartbeat(t *testing.T) {
 					MicroAlgos: basics.MicroAlgos{Raw: 100_000},
 				},
 				VotingData: basics.VotingData{
-					VoteID: otss.OneTimeSignatureVerifier,
+					VoteID:          otss.OneTimeSignatureVerifier,
+					VoteKeyDilution: 123,
 				},
 			},
 		},
@@ -1462,10 +1463,12 @@ func TestEvaluatorPrefetcherAlignmentHeartbeat(t *testing.T) {
 			GenesisHash: genesisHash(),
 			Fee:         basics.Algos(1), // Heartbeat txn is unusual in that it checks fees a bit.
 		},
-		HeartbeatTxnFields: transactions.HeartbeatTxnFields{
-			HbAddress: makeAddress(2),
-			HbProof:   otss.Sign(firstID, committee.Seed(genesisHash())).ToHeartbeatProof(),
-			HbSeed:    committee.Seed(genesisHash()),
+		HeartbeatTxnFields: &transactions.HeartbeatTxnFields{
+			HbAddress:     makeAddress(2),
+			HbProof:       otss.Sign(firstID, committee.Seed(genesisHash())).ToHeartbeatProof(),
+			HbSeed:        committee.Seed(genesisHash()),
+			HbVoteID:      otss.OneTimeSignatureVerifier,
+			HbKeyDilution: 123,
 		},
 	}
 

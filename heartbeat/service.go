@@ -97,7 +97,7 @@ func (s *Service) findChallenged(rules config.ProposerPayoutRules, current basic
 		if acct.VoteID != pr.Voting.OneTimeSignatureVerifier {
 			continue
 		}
-		if acct.Status == basics.Online {
+		if acct.Status == basics.Online && acct.IncentiveEligible {
 			if ch.Failed(pr.Account, acct.LastSeen()) {
 				s.log.Infof(" %v needs a heartbeat\n", pr.Account)
 				found = append(found, pr)
@@ -180,10 +180,12 @@ func (s *Service) prepareHeartbeat(pr account.ParticipationRecordForRound, lates
 	}
 
 	id := basics.OneTimeIDForRound(stxn.Txn.LastValid, pr.KeyDilution)
-	stxn.Txn.HeartbeatTxnFields = transactions.HeartbeatTxnFields{
-		HbAddress: pr.Account,
-		HbProof:   pr.Voting.Sign(id, latest.Seed).ToHeartbeatProof(),
-		HbSeed:    latest.Seed,
+	stxn.Txn.HeartbeatTxnFields = &transactions.HeartbeatTxnFields{
+		HbAddress:     pr.Account,
+		HbProof:       pr.Voting.Sign(id, latest.Seed).ToHeartbeatProof(),
+		HbSeed:        latest.Seed,
+		HbVoteID:      pr.Voting.OneTimeSignatureVerifier,
+		HbKeyDilution: pr.KeyDilution,
 	}
 
 	return stxn

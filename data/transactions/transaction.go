@@ -27,6 +27,7 @@ import (
 	"github.com/algorand/go-algorand/config"
 	"github.com/algorand/go-algorand/crypto"
 	"github.com/algorand/go-algorand/data/basics"
+	"github.com/algorand/go-algorand/data/committee"
 	"github.com/algorand/go-algorand/protocol"
 )
 
@@ -100,7 +101,11 @@ type Transaction struct {
 	AssetFreezeTxnFields
 	ApplicationCallTxnFields
 	StateProofTxnFields
-	HeartbeatTxnFields
+
+	// By making HeartbeatTxnFields a pointer we save a ton of space of the
+	// Transaction object. Unlike other txn types, the fields will be
+	// embedded under a named field in the transaction encoding.
+	*HeartbeatTxnFields `codec:"hb"`
 }
 
 // ApplyData contains information about the transaction's execution.
@@ -571,6 +576,37 @@ func (tx Transaction) WellFormed(spec SpecialAddresses, proto config.ConsensusPa
 			return fmt.Errorf("heartbeat transaction not supported")
 		}
 
+		// If this is a free/cheap heartbeat, it must be very simple.
+		if tx.Fee.Raw < proto.MinTxnFee && tx.Group.IsZero() {
+			kind := "free"
+			if tx.Fee.Raw > 0 {
+				kind = "cheap"
+			}
+
+			if len(tx.Note) > 0 {
+				return fmt.Errorf("tx.Note is set in %s heartbeat", kind)
+			}
+			if tx.Lease != [32]byte{} {
+				return fmt.Errorf("tx.Lease is set in %s heartbeat", kind)
+			}
+			if !tx.RekeyTo.IsZero() {
+				return fmt.Errorf("tx.RekeyTo is set in %s heartbeat", kind)
+			}
+		}
+
+		if (tx.HbProof == crypto.HeartbeatProof{}) {
+			return errors.New("tx.HbProof is empty")
+		}
+		if (tx.HbSeed == committee.Seed{}) {
+			return errors.New("tx.HbSeed is empty")
+		}
+		if tx.HbVoteID.IsEmpty() {
+			return errors.New("tx.HbVoteID is empty")
+		}
+		if tx.HbKeyDilution == 0 {
+			return errors.New("tx.HbKeyDilution is zero")
+		}
+
 	default:
 		return fmt.Errorf("unknown tx type %v", tx.Type)
 	}
@@ -600,11 +636,11 @@ func (tx Transaction) WellFormed(spec SpecialAddresses, proto config.ConsensusPa
 		nonZeroFields[protocol.ApplicationCallTx] = true
 	}
 
-	if !tx.StateProofTxnFields.Empty() {
+	if !tx.StateProofTxnFields.MsgIsZero() {
 		nonZeroFields[protocol.StateProofTx] = true
 	}
 
-	if tx.HeartbeatTxnFields != (HeartbeatTxnFields{}) {
+	if tx.HeartbeatTxnFields != nil {
 		nonZeroFields[protocol.HeartbeatTx] = true
 	}
 
