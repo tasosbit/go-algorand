@@ -258,6 +258,9 @@ const ConsensusVFnet3 = ConsensusVersion("fnet3")
 // ConsensusVFnet4 re-introduces challenges & code brings heartbeats
 const ConsensusVFnet4 = ConsensusVersion("fnet4")
 
+// ConsensusVFnet5 actually enables heartbeats
+const ConsensusVFnet5 = ConsensusVersion("fnet5")
+
 // !!! ********************* !!!
 // !!! *** Please update ConsensusCurrentVersion when adding new protocol versions *** !!!
 // !!! ********************* !!!
