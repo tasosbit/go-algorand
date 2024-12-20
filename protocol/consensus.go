@@ -251,6 +251,21 @@ const ConsensusVAlpha4 = ConsensusVersion("alpha4")
 // ConsensusVAlpha5 uses the same parameters as ConsensusV36.
 const ConsensusVAlpha5 = ConsensusVersion("alpha5")
 
+// ConsensusVFnet1 uses the same parameters as Future/incentives.
+const ConsensusVFnet1 = ConsensusVersion("fnet1")
+
+// ConsensusVFnet2 uses the same parameters as Future/incentives.
+const ConsensusVFnet2 = ConsensusVersion("fnet2")
+
+// ConsensusVFnet3 disables challenges - without heartbeats, participating accounts are being evicted
+const ConsensusVFnet3 = ConsensusVersion("fnet3")
+
+// ConsensusVFnet4 re-introduces challenges & code brings heartbeats
+const ConsensusVFnet4 = ConsensusVersion("fnet4")
+
+// ConsensusVFnet5 actually enables heartbeats
+const ConsensusVFnet5 = ConsensusVersion("fnet5")
+
 // !!! ********************* !!!
 // !!! *** Please update ConsensusCurrentVersion when adding new protocol versions *** !!!
 // !!! ********************* !!!
