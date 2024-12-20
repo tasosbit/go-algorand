@@ -1611,6 +1611,7 @@ func initConsensusProtocols() {
 	// vFnet5: enable heartbeats, were accidentally left out of fnet4
 	vFnet5 := v39
 	vFnet5.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
+	Consensus[protocol.ConsensusVFnet5] = vFnet5
 	vFnet5.LogicSigVersion = 11
 	vFnet5.EnableLogicSigSizePooling = true
 	vFnet5.Payouts.Enabled = true
