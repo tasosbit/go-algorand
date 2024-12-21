@@ -239,10 +239,6 @@ func (x *roundCowBase) lookupAgreement(addr basics.Address) (basics.OnlineAccoun
 	return ad, err
 }
 
-func (x *roundCowBase) knockOfflineCandidates() (map[basics.Address]basics.OnlineAccountData, error) {
-	return x.l.GetKnockOfflineCandidates(x.rnd, x.proto)
-}
-
 // onlineStake returns the total online stake as of the start of the round. It
 // caches the result to prevent repeated calls to the ledger.
 func (x *roundCowBase) onlineStake() (basics.MicroAlgos, error) {
