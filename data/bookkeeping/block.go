@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -53,7 +53,7 @@ type (
 		TimeStamp int64 `codec:"ts"`
 
 		// Genesis ID to which this block belongs.
-		GenesisID string `codec:"gen,allocbound=config.MaxGenesisIDLen"`
+		GenesisID string `codec:"gen,allocbound=bounds.MaxGenesisIDLen"`
 
 		// Genesis hash to which this block belongs.
 		GenesisHash crypto.Digest `codec:"gh"`
@@ -164,11 +164,11 @@ type (
 		// ExpiredParticipationAccounts contains a list of online accounts
 		// that needs to be converted to offline since their
 		// participation key expired.
-		ExpiredParticipationAccounts []basics.Address `codec:"partupdrmv,allocbound=config.MaxProposedExpiredOnlineAccounts"`
+		ExpiredParticipationAccounts []basics.Address `codec:"partupdrmv,allocbound=bounds.MaxProposedExpiredOnlineAccounts"`
 
 		// AbsentParticipationAccounts contains a list of online accounts that
 		// needs to be converted to offline since they are not proposing.
-		AbsentParticipationAccounts []basics.Address `codec:"partupdabs,allocbound=config.MaxMarkAbsent"`
+		AbsentParticipationAccounts []basics.Address `codec:"partupdabs,allocbound=bounds.MaxMarkAbsent"`
 	}
 
 	// RewardsState represents the global parameters controlling the rate
@@ -222,9 +222,10 @@ type (
 	// (instead of materializing it separately, like balances).
 	//msgp:ignore UpgradeState
 	UpgradeState struct {
-		CurrentProtocol       protocol.ConsensusVersion `codec:"proto"`
-		NextProtocol          protocol.ConsensusVersion `codec:"nextproto"`
-		NextProtocolApprovals uint64                    `codec:"nextyes"`
+		CurrentProtocol protocol.ConsensusVersion `codec:"proto"`
+		NextProtocol    protocol.ConsensusVersion `codec:"nextproto"`
+		// NextProtocolApprovals is the number of approvals for the next protocol proposal. It is expressed in basics.Round because it is a count of rounds.
+		NextProtocolApprovals basics.Round `codec:"nextyes"`
 		// NextProtocolVoteBefore specify the last voting round for the next protocol proposal. If there is no voting for
 		// an upgrade taking place, this would be zero.
 		NextProtocolVoteBefore basics.Round `codec:"nextbefore"`
@@ -258,9 +259,62 @@ type (
 	// A Block contains the Payset and metadata corresponding to a given Round.
 	Block struct {
 		BlockHeader
-		Payset transactions.Payset `codec:"txns,maxtotalbytes=config.MaxTxnBytesPerBlock"`
+		Payset transactions.Payset `codec:"txns,maxtotalbytes=bounds.MaxTxnBytesPerBlock"`
 	}
 )
+
+// TxnDeadError defines an error type which indicates a transaction is outside of the
+// round validity window.
+type TxnDeadError struct {
+	Round      basics.Round
+	FirstValid basics.Round
+	LastValid  basics.Round
+	Early      bool
+}
+
+func (err *TxnDeadError) Error() string {
+	return fmt.Sprintf("txn dead: round %d outside of %d--%d", err.Round, err.FirstValid, err.LastValid)
+}
+
+// Alive checks to see if the transaction is still alive (can be applied) at the specified Round.
+func (bh BlockHeader) Alive(tx transactions.Header) error {
+	// Check round validity
+	round := bh.Round
+	if round < tx.FirstValid || round > tx.LastValid {
+		return &TxnDeadError{
+			Round:      round,
+			FirstValid: tx.FirstValid,
+			LastValid:  tx.LastValid,
+			Early:      round < tx.FirstValid,
+		}
+	}
+
+	// Check genesis ID
+	proto := config.Consensus[bh.CurrentProtocol]
+	genesisID := bh.GenesisID
+	if tx.GenesisID != "" && tx.GenesisID != genesisID {
+		return fmt.Errorf("tx.GenesisID <%s> does not match expected <%s>",
+			tx.GenesisID, genesisID)
+	}
+
+	// Check genesis hash
+	if proto.SupportGenesisHash {
+		genesisHash := bh.GenesisHash
+		if tx.GenesisHash != (crypto.Digest{}) && tx.GenesisHash != genesisHash {
+			return fmt.Errorf("tx.GenesisHash <%s> does not match expected <%s>",
+				tx.GenesisHash, genesisHash)
+		}
+		if proto.RequireGenesisHash && tx.GenesisHash == (crypto.Digest{}) {
+			return fmt.Errorf("required tx.GenesisHash is missing")
+		}
+	} else {
+		if tx.GenesisHash != (crypto.Digest{}) {
+			return fmt.Errorf("tx.GenesisHash <%s> not allowed", tx.GenesisHash)
+		}
+	}
+
+	return nil
+}
 
 // Hash returns the hash of a block header.
 // The hash of a block is the hash of its header.
@@ -453,7 +507,7 @@ func (s UpgradeState) applyUpgradeVote(r basics.Round, vote UpgradeVote) (res Up
 	}
 
 	// Clear out failed proposal
-	if r == s.NextProtocolVoteBefore && s.NextProtocolApprovals < params.UpgradeThreshold {
+	if r == s.NextProtocolVoteBefore && s.NextProtocolApprovals < basics.Round(params.UpgradeThreshold) {
 		s.NextProtocol = ""
 		s.NextProtocolApprovals = 0
 		s.NextProtocolVoteBefore = basics.Round(0)

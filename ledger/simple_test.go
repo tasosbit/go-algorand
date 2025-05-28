@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ package ledger
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -74,8 +75,10 @@ func newSimpleLedgerFull(t testing.TB, balances bookkeeping.GenesisBalances, cv 
 	require.NoError(t, err)
 	require.False(t, genBlock.FeeSink.IsZero())
 	require.False(t, genBlock.RewardsPool.IsZero())
+	tempDir := t.TempDir()
 	dbName := fmt.Sprintf("%s.%d", t.Name(), crypto.RandUint64())
 	dbName = strings.Replace(dbName, "/", "_", -1)
+	dbName = filepath.Join(tempDir, dbName)
 	cfg.Archival = !slCfg.notArchival
 	log := slCfg.logger
 	if log == nil {

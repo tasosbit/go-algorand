@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -797,7 +797,7 @@ func (ledger *evalTestLedger) GetKnockOfflineCandidates(rnd basics.Round, _ conf
 	ret := make(map[basics.Address]basics.OnlineAccountData)
 	for addr, data := range ledger.roundBalances[rnd] {
 		if data.Status == basics.Online && !data.MicroAlgos.IsZero() {
-			ret[addr] = data.OnlineAccountData()
+			ret[addr] = basics_testing.OnlineAccountData(data)
 		}
 	}
 	return ret, nil

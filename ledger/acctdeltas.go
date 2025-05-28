@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -1032,6 +1032,19 @@ func onlineAccountsNewRoundImpl(
 						prevAcct = updated
 					}
 				} else {
+					if prevAcct.AccountData.IsVotingEmpty() && newStatus != basics.Online {
+						// we are not using newAcct.IsVotingEmpty because new account comes from deltas,
+						// and deltas are base (full) accounts, so that it can have status=offline and non-empty voting data
+						// for suspended accounts.
+						// it is not the same for online accounts where empty all offline accounts are stored with empty voting data.
+
+						// if both old and new are offline, ignore
+						// otherwise the following could happen:
+						// 1. there are multiple offline account deltas so all of them could be inserted
+						// 2. delta.oldAcct is often pulled from a cache that is only updated on new rows insert so
+						// it could pull a very old already deleted offline value resulting one more insert
+						continue
+					}
 					// "delete" by inserting a zero entry
 					var ref trackerdb.OnlineAccountRef
 					ref, err = writer.InsertOnlineAccount(data.address, 0, trackerdb.BaseOnlineAccountData{}, updRound, 0)

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -625,11 +625,11 @@ func (l *Ledger) LookupKv(rnd basics.Round, key string) ([]byte, error) {
 
 // LookupKeysByPrefix searches keys with specific prefix, up to `maxKeyNum`
 // if `maxKeyNum` == 0, then it loads all keys with such prefix
-func (l *Ledger) LookupKeysByPrefix(round basics.Round, keyPrefix string, maxKeyNum uint64) ([]string, error) {
+func (l *Ledger) LookupKeysByPrefix(prefix, next string, boxLimit, byteLimit int, values bool) (basics.Round, map[string]string, string, error) {
 	l.trackerMu.RLock()
 	defer l.trackerMu.RUnlock()
 
-	return l.accts.LookupKeysByPrefix(round, keyPrefix, maxKeyNum)
+	return l.accts.LookupKeysByPrefix(prefix, next, boxLimit, byteLimit, values)
 }
 
 // LookupAgreement returns account data used by agreement.

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -20,11 +20,10 @@ import (
 	"fmt"
 
 	"github.com/algorand/go-algorand/config"
+	"github.com/algorand/go-algorand/config/bounds"
 	"github.com/algorand/go-algorand/crypto"
 	"github.com/algorand/go-algorand/data/basics"
 	"github.com/algorand/go-algorand/protocol"
-
-	//"github.com/algorand/go-algorand/data/bookkeeping"
 
 	"github.com/algorand/go-algorand/ledger/ledgercore"
 )
@@ -176,11 +175,12 @@ func RandomAppParams() basics.AppParams {
 	}
 
 	ap := basics.AppParams{
-		ApprovalProgram:   make([]byte, int(crypto.RandUint63())%config.MaxAppProgramLen),
-		ClearStateProgram: make([]byte, int(crypto.RandUint63())%config.MaxAppProgramLen),
+		ApprovalProgram:   make([]byte, int(crypto.RandUint63())%bounds.MaxAppProgramLen),
+		ClearStateProgram: make([]byte, int(crypto.RandUint63())%bounds.MaxAppProgramLen),
 		GlobalState:       make(basics.TealKeyValue),
 		StateSchemas:      schemas,
 		ExtraProgramPages: uint32(crypto.RandUint64() % 4),
+		Version:           crypto.RandUint64() % 10,
 	}
 	if len(ap.ApprovalProgram) > 0 {
 		crypto.RandBytes(ap.ApprovalProgram[:])
@@ -215,7 +215,7 @@ func RandomAppParams() basics.AppParams {
 
 		var bytes []byte
 		if crypto.RandUint64()%5 != 0 {
-			bytes = make([]byte, crypto.RandUint64()%uint64(config.MaxBytesKeyValueLen-len(keyName)))
+			bytes = make([]byte, crypto.RandUint64()%uint64(bounds.MaxBytesKeyValueLen-len(keyName)))
 			crypto.RandBytes(bytes[:])
 		}
 
@@ -227,7 +227,6 @@ func RandomAppParams() basics.AppParams {
 	if len(ap.GlobalState) == 0 {
 		ap.GlobalState = nil
 	}
-	ap.ExtraProgramPages = uint32(crypto.RandUint64() % 4)
 	return ap
 }
 
@@ -262,7 +261,7 @@ func RandomAppLocalState() basics.AppLocalState {
 		}
 		var bytes []byte
 		if crypto.RandUint64()%5 != 0 {
-			bytes = make([]byte, crypto.RandUint64()%uint64(config.MaxBytesKeyValueLen-len(keyName)))
+			bytes = make([]byte, crypto.RandUint64()%uint64(bounds.MaxBytesKeyValueLen-len(keyName)))
 			crypto.RandBytes(bytes[:])
 		}
 
@@ -336,7 +335,7 @@ func RandomFullAccountData(rewardsLevel uint64, lastCreatableID *basics.Creatabl
 					break
 				}
 			}
-			data.AppLocalStates[basics.AppIndex(aidx)] = ap
+			data.AppLocalStates[aidx] = ap
 		}
 	}
 

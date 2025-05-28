@@ -594,7 +594,7 @@ Some of these have immediate data in the byte or bytes after the opcode.
 | 60 | CreatedAssetID | uint64 | v5  | Asset ID allocated by the creation of an ASA (only with `itxn` in v5). Application mode only |
 | 61 | CreatedApplicationID | uint64 | v5  | ApplicationID allocated by the creation of an application (only with `itxn` in v5). Application mode only |
 | 62 | LastLog | []byte | v6  | The last message emitted. Empty bytes if none were emitted. Application mode only |
-| 63 | StateProofPK | []byte | v6  | 64 byte state proof public key |
+| 63 | StateProofPK | [64]byte | v6  | State proof public key |
 | 65 | NumApprovalProgramPages | uint64 | v7  | Number of Approval Program pages |
 | 67 | NumClearStateProgramPages | uint64 | v7  | Number of ClearState Program pages |
 
@@ -639,8 +639,8 @@ Global fields are fields that are common to all the transactions in the group. I
 | 18 | PayoutsEnabled | bool | v11  | Whether block proposal payouts are enabled. |
 | 19 | PayoutsGoOnlineFee | uint64 | v11  | The fee required in a keyreg transaction to make an account incentive eligible. |
 | 20 | PayoutsPercent | uint64 | v11  | The percentage of transaction fees in a block that can be paid to the block proposer. |
-| 21 | PayoutsMinBalance | uint64 | v11  | The minimum algo balance an account must have in the agreement round to receive block payouts in the proposal round. |
-| 22 | PayoutsMaxBalance | uint64 | v11  | The maximum algo balance an account can have in the agreement round to receive block payouts in the proposal round. |
+| 21 | PayoutsMinBalance | uint64 | v11  | The minimum balance an account must have in the agreement round to receive block payouts in the proposal round. |
+| 22 | PayoutsMaxBalance | uint64 | v11  | The maximum balance an account can have in the agreement round to receive block payouts in the proposal round. |
 
 
 **Asset Fields**

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -165,9 +165,6 @@ const (
 	tealsignTooManyArg    = "--set-lsig-arg-idx too large, maximum of %d arguments"
 	tealsignInfoWroteSig  = "Wrote signature for %s to LSig.Args[%d]"
 
-	tealLogicSigSize = "%s: logicsig program size too large: %d > %d"
-	tealAppSize      = "%s: app program size too large: %d > %d"
-
 	// Wallet
 	infoRecoveryPrompt           = "Please type your recovery mnemonic below, and hit return when you are done: "
 	infoChoosePasswordPrompt     = "Please choose a password for wallet '%s': "
@@ -175,6 +172,7 @@ const (
 	infoCreatingWallet           = "Creating wallet..."
 	infoCreatedWallet            = "Created wallet '%s'"
 	infoSkipPassword             = "Skipping password prompt"
+	infoUnencrypted              = "Creating unencrypted wallet"
 	infoBackupExplanation        = "Your new wallet has a backup phrase that can be used for recovery.\nKeeping this backup phrase safe is extremely important.\nWould you like to see it now? (Y/n): "
 	infoPrintedBackupPhrase      = "Your backup phrase is printed below.\nKeep this information safe -- never share it with anyone!"
 	infoBackupPhrase             = "\n%s"

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -81,7 +81,7 @@ type KvValueDelta struct {
 	// Data stores the most recent value (nil == deleted)
 	Data []byte
 
-	// OldData stores the previous vlaue (nil == didn't exist)
+	// OldData stores the previous value (nil == didn't exist)
 	OldData []byte
 }
 

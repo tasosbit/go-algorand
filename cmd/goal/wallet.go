@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -32,9 +32,10 @@ import (
 )
 
 var (
-	recoverWallet     bool
-	noPassword        bool
-	defaultWalletName string
+	recoverWallet           bool
+	createUnencryptedWallet bool
+	noDisplaySeed           bool
+	defaultWalletName       string
 )
 
 func init() {
@@ -47,7 +48,8 @@ func init() {
 
 	// Should we recover the wallet?
 	newWalletCmd.Flags().BoolVarP(&recoverWallet, "recover", "r", false, "Recover the wallet from the backup mnemonic provided at wallet creation (NOT the mnemonic provided by goal account export or by algokey). Regenerate accounts in the wallet with `goal account new`")
-	newWalletCmd.Flags().BoolVarP(&noPassword, "non-interactive", "n", false, "Create the new wallet without prompting for password or displaying the seed phrase")
+	newWalletCmd.Flags().BoolVar(&createUnencryptedWallet, "unencrypted", false, "Create a new wallet without a password.")
+	newWalletCmd.Flags().BoolVar(&noDisplaySeed, "no-display-seed", false, "Create a new wallet without displaying the seed phrase.")
 }
 
 var walletCmd = &cobra.Command{
@@ -99,15 +101,15 @@ var newWalletCmd = &cobra.Command{
 		var mdk crypto.MasterDerivationKey
 		if recoverWallet {
 			fmt.Println(infoRecoveryPrompt)
-			resp, err := reader.ReadString('\n')
+			resp, err1 := reader.ReadString('\n')
 			resp = strings.TrimSpace(resp)
-			if err != nil {
-				reportErrorf(errorFailedToReadResponse, err)
+			if err1 != nil {
+				reportErrorf(errorFailedToReadResponse, err1)
 			}
 			var key []byte
-			key, err = passphrase.MnemonicToKey(resp)
-			if err != nil {
-				reportErrorf(errorBadMnemonic, err)
+			key, err1 = passphrase.MnemonicToKey(resp)
+			if err1 != nil {
+				reportErrorf(errorBadMnemonic, err1)
 			}
 			// Copy the recovered key into the mdk
 			n := copy(mdk[:], key)
@@ -118,8 +120,8 @@ var newWalletCmd = &cobra.Command{
 
 		walletPassword := []byte{}
 
-		if noPassword {
-			reportInfoln(infoSkipPassword)
+		if createUnencryptedWallet {
+			reportInfoln(infoUnencrypted)
 		} else {
 			// Fetch a password for the wallet
 			fmt.Printf(infoChoosePasswordPrompt, walletName)
@@ -143,35 +145,35 @@ var newWalletCmd = &cobra.Command{
 		}
 		reportInfof(infoCreatedWallet, walletName)
 
-		if !recoverWallet && !noPassword {
+		if !recoverWallet && !noDisplaySeed {
 			// Offer to print backup seed
-			fmt.Printf(infoBackupExplanation)
-			resp, err := reader.ReadString('\n')
+			fmt.Println(infoBackupExplanation)
+			resp, err1 := reader.ReadString('\n')
 			resp = strings.TrimSpace(resp)
-			if err != nil {
-				reportErrorf(errorFailedToReadResponse, err)
+			if err1 != nil {
+				reportErrorf(errorFailedToReadResponse, err1)
 			}
 
 			if strings.ToLower(resp) != "n" {
 				// Get a wallet handle token
-				token, err := client.GetWalletHandleToken(walletID, walletPassword)
-				if err != nil {
-					reportErrorf(errorCouldntInitializeWallet, err)
+				token, err1 := client.GetWalletHandleToken(walletID, walletPassword)
+				if err1 != nil {
+					reportErrorf(errorCouldntInitializeWallet, err1)
 				}
 
 				// Invalidate the handle when we're done with it
 				defer client.ReleaseWalletHandle(token)
 
 				// Export the master derivation key
-				mdk, err := client.ExportMasterDerivationKey(token, walletPassword)
-				if err != nil {
-					reportErrorf(errorCouldntExportMDK, err)
+				mdk, err1 := client.ExportMasterDerivationKey(token, walletPassword)
+				if err1 != nil {
+					reportErrorf(errorCouldntExportMDK, err1)
 				}
 
 				// Convert the key to a mnemonic
-				mnemonic, err := passphrase.KeyToMnemonic(mdk[:])
-				if err != nil {
-					reportErrorf(errorCouldntMakeMnemonic, err)
+				mnemonic, err1 := passphrase.KeyToMnemonic(mdk[:])
+				if err1 != nil {
+					reportErrorf(errorCouldntMakeMnemonic, err1)
 				}
 
 				// Display the mnemonic to the user
@@ -221,22 +223,40 @@ var renameWalletCmd = &cobra.Command{
 		walletName := []byte(args[0])
 		newWalletName := []byte(args[1])
 
+<<<<<<< HEAD
 		wid, duplicate, err := client.FindWalletIDByName(walletName)
 
 		if wid == nil {
 			reportErrorf(errorCouldntFindWallet, string(walletName))
 		}
 
+=======
+		if bytes.Equal(walletName, newWalletName) {
+			reportErrorf(errorCouldntRenameWallet, "new name is identical to current name")
+		}
+
+		wid, duplicate, err := client.FindWalletIDByName(walletName)
+
+>>>>>>> master
 		if err != nil {
 			reportErrorf(errorCouldntRenameWallet, err)
 		}
 
+<<<<<<< HEAD
 		if duplicate {
 			reportErrorf(errorCouldntRenameWallet, "Multiple wallets by the same name are not supported")
 		}
 
 		if bytes.Equal(walletName, newWalletName) {
 			reportErrorf(errorCouldntRenameWallet, "new name is identical to current name")
+=======
+		if wid == nil {
+			reportErrorf(errorCouldntFindWallet, string(walletName))
+		}
+
+		if duplicate {
+			reportErrorf(errorCouldntRenameWallet, "Multiple wallets by the same name are not supported")
+>>>>>>> master
 		}
 
 		walletPassword := []byte{}

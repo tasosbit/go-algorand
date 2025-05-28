@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -362,9 +362,10 @@ func createCatchpoint(t *testing.T, ct *catchpointTracker, accountsRound basics.
 	spVerificationEncodedData, stateProofVerificationHash, err := ct.getSPVerificationData()
 	require.NoError(t, err)
 
+	proto := protocol.ConsensusCurrentVersion
 	var catchpointGenerationStats telemetryspec.CatchpointGenerationEventDetails
 	_, _, _, _, _, biggestChunkLen, err := ct.generateCatchpointData(
-		context.Background(), accountsRound, &catchpointGenerationStats, spVerificationEncodedData)
+		context.Background(), config.Consensus[proto], accountsRound, 0, &catchpointGenerationStats, spVerificationEncodedData)
 	require.NoError(t, err)
 
 	require.Equal(t, calculateStateProofVerificationHash(t, ml), stateProofVerificationHash)
@@ -372,7 +373,7 @@ func createCatchpoint(t *testing.T, ct *catchpointTracker, accountsRound basics.
 	err = ct.createCatchpoint(
 		context.Background(), accountsRound, round,
 		trackerdb.CatchpointFirstStageInfo{BiggestChunkLen: biggestChunkLen},
-		crypto.Digest{}, protocol.ConsensusCurrentVersion)
+		crypto.Digest{}, proto)
 	require.NoError(t, err)
 }
 
@@ -605,7 +606,7 @@ func BenchmarkLargeCatchpointDataWriting(b *testing.B) {
 	encodedSPData, _, err := ct.getSPVerificationData()
 	require.NoError(b, err)
 	b.ResetTimer()
-	ct.generateCatchpointData(context.Background(), basics.Round(0), &catchpointGenerationStats, encodedSPData)
+	ct.generateCatchpointData(context.Background(), proto, 0, 0, &catchpointGenerationStats, encodedSPData)
 	b.StopTimer()
 	b.ReportMetric(float64(accountsNumber), "accounts")
 }
@@ -1891,7 +1892,7 @@ func TestCatchpointFastUpdates(t *testing.T) {
 	conf := config.GetDefaultLocal()
 	conf.CatchpointInterval = 1
 	conf.CatchpointTracking = 1
-	initialBlocksCount := int(conf.MaxAcctLookback)
+	initialBlocksCount := basics.Round(conf.MaxAcctLookback)
 	ml := makeMockLedgerForTracker(t, true, initialBlocksCount, protocol.ConsensusFuture, accts)
 	defer ml.Close()
 
@@ -1912,7 +1913,7 @@ func TestCatchpointFastUpdates(t *testing.T) {
 
 	// cover 10 genesis blocks
 	rewardLevel := uint64(0)
-	for i := 1; i < initialBlocksCount; i++ {
+	for i := basics.Round(1); i < initialBlocksCount; i++ {
 		accts = append(accts, accts[0])
 		rewardsLevels = append(rewardsLevels, rewardLevel)
 	}
@@ -2006,7 +2007,7 @@ func TestCatchpointLargeAccountCountCatchpointGeneration(t *testing.T) {
 	conf.CatchpointInterval = 32
 	conf.CatchpointTracking = 1
 	conf.Archival = true
-	initialBlocksCount := int(conf.MaxAcctLookback)
+	initialBlocksCount := basics.Round(conf.MaxAcctLookback)
 	ml := makeMockLedgerForTracker(t, true, initialBlocksCount, testProtocolVersion, accts)
 	defer ml.Close()
 
@@ -2023,7 +2024,7 @@ func TestCatchpointLargeAccountCountCatchpointGeneration(t *testing.T) {
 
 	// cover 10 genesis blocks
 	rewardLevel := uint64(0)
-	for i := 1; i < initialBlocksCount; i++ {
+	for i := basics.Round(1); i < initialBlocksCount; i++ {
 		accts = append(accts, accts[0])
 		rewardsLevels = append(rewardsLevels, rewardLevel)
 	}

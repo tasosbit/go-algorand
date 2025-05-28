@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ package pools
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -1438,7 +1439,7 @@ func TestStateProofLogging(t *testing.T) {
 	// Set the logging to capture the telemetry Metrics into logging
 	logger := logging.TestingLog(t)
 	logger.SetLevel(logging.Info)
-	logger.EnableTelemetry(logging.TelemetryConfig{Enable: true, SendToLog: true})
+	logger.EnableTelemetryContext(context.Background(), logging.TelemetryConfig{Enable: true, SendToLog: true})
 	var buf bytes.Buffer
 	logger.SetOutput(&buf)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2024 Algorand, Inc.
+// Copyright (C) 2019-2025 Algorand, Inc.
 // This file is part of go-algorand
 //
 // go-algorand is free software: you can redistribute it and/or modify
@@ -521,7 +521,7 @@ func (c *catchpointCatchupAccessorImpl) processStagingBalances(ctx context.Conte
 		// we won't get to this point, since we've already verified the version in processStagingContent
 		return errors.New("unsupported version")
 	case CatchpointFileVersionV5:
-		var balances catchpointFileBalancesChunkV5
+		var balances CatchpointSnapshotChunkV5
 		err = protocol.Decode(bytes, &balances)
 		if err != nil {
 			return err
@@ -542,7 +542,7 @@ func (c *catchpointCatchupAccessorImpl) processStagingBalances(ctx context.Conte
 		fallthrough
 	case CatchpointFileVersionV8:
 		// V8 added online accounts and online round params data + hashes, and added them to the v6 chunk format
-		var chunk catchpointFileChunkV6
+		var chunk CatchpointSnapshotChunkV6
 		err = protocol.Decode(bytes, &chunk)
 		if err != nil {
 			return err
@@ -978,8 +978,8 @@ func (c *catchpointCatchupAccessorImpl) BuildMerkleTrie(ctx context.Context, pro
 	wg.Wait()
 
 	select {
-	case err := <-errChan:
-		return err
+	case err1 := <-errChan:
+		return err1
 	default:
 	}
 
@@ -1031,12 +1031,12 @@ func (c *catchpointCatchupAccessorImpl) GetVerifyData(ctx context.Context) (bala
 			return fmt.Errorf("unable to get state proof verification data: %v", err)
 		}
 
-		onlineAccountsHash, _, err = calculateVerificationHash(ctx, tx.MakeOnlineAccountsIter, true)
+		onlineAccountsHash, _, err = calculateVerificationHash(ctx, tx.MakeOrderedOnlineAccountsIter, 0, true)
 		if err != nil {
 			return fmt.Errorf("unable to get online accounts verification data: %v", err)
 		}
 
-		onlineRoundParamsHash, _, err = calculateVerificationHash(ctx, tx.MakeOnlineRoundParamsIter, true)
+		onlineRoundParamsHash, _, err = calculateVerificationHash(ctx, tx.MakeOnlineRoundParamsIter, 0, true)
 		if err != nil {
 			return fmt.Errorf("unable to get online round params verification data: %v", err)
 		}
@@ -1058,11 +1058,12 @@ func (c *catchpointCatchupAccessorImpl) GetVerifyData(ctx context.Context) (bala
 // both at restore time (in catchpointCatchupAccessorImpl) and snapshot time (in catchpointTracker).
 func calculateVerificationHash[T crypto.Hashable](
 	ctx context.Context,
-	iterFactory func(context.Context, bool) (trackerdb.TableIterator[T], error),
+	iterFactory func(context.Context, bool, basics.Round) (trackerdb.TableIterator[T], error),
+	excludeBefore basics.Round,
 	useStaging bool,
 ) (crypto.Digest, uint64, error) {
 
-	rows, err := iterFactory(ctx, useStaging)
+	rows, err := iterFactory(ctx, useStaging, excludeBefore)
 	if err != nil {
 		return crypto.Digest{}, 0, err
 	}
