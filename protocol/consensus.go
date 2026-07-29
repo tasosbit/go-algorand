@@ -258,6 +258,11 @@ const ConsensusVAlpha4 = ConsensusVersion("alpha4")
 // ConsensusVAlpha5 uses the same parameters as ConsensusV36.
 const ConsensusVAlpha5 = ConsensusVersion("alpha5")
 
+// ConsensusVFnet5 is the protocol AF's FNet runs, with the same parameters as
+// ConsensusV42. It extends ConsensusV41 and restates the v42 changes rather than
+// deriving from v42, so that fnet5 remains pinned to the values FNet runs with.
+const ConsensusVFnet5 = ConsensusVersion("fnet5")
+
 // !!! ********************* !!!
 // !!! *** Please update ConsensusCurrentVersion when adding new protocol versions *** !!!
 // !!! ********************* !!!

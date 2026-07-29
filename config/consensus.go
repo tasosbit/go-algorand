@@ -1587,6 +1587,32 @@ func initConsensusProtocols() {
 	vAlpha5.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
 	Consensus[protocol.ConsensusVAlpha5] = vAlpha5
 	vAlpha4.ApprovedUpgrades[protocol.ConsensusVAlpha5] = 10000
+
+	// vFnet5 is the protocol AF's FNet runs. It has the same parameters as v42,
+	// but it extends v41 and restates the v42 changes rather than deriving from
+	// v42, so that fnet5 stays pinned to the values FNet runs with even if v42
+	// is later amended.
+	vFnet5 := v41
+	vFnet5.ApprovedUpgrades = map[protocol.ConsensusVersion]uint64{}
+
+	vFnet5.LogicSigVersion = 13
+	vFnet5.AppSizeUpdates = true
+	vFnet5.AllowZeroLocalAppRef = true
+	vFnet5.EnforceAuthAddrSenderDiff = true
+	vFnet5.EnablePQSchemeFalcon1024 = true
+	vFnet5.LoadTracking = true
+	vFnet5.MaxAbsoluteTxnNoteBytes = 4096   // same as largest AVM value
+	vFnet5.MaxAbsoluteExtraProgramPages = 7 // Allow larger programs with extra fees
+	vFnet5.MaxAbsoluteTotalArgLen = 16384   // We _could_ make this as high as 16*4k
+	vFnet5.PerByteTxnSurcharge = 100        // Each charged byte adds 0.000100 of min fee
+	vFnet5.EnableSelectF128 = true
+
+	Consensus[protocol.ConsensusVFnet5] = vFnet5
+
+	// v41 can be upgraded to fnet5. As with the other FNet protocols the delay is
+	// MinUpgradeWaitRounds, which ApplyShorterUpgradeRoundsForDevNetworks keeps
+	// in place for the fnet network.
+	v41.ApprovedUpgrades[protocol.ConsensusVFnet5] = 10000
 }
 
 // Global defines global Algorand protocol parameters which should not be overridden.
