@@ -258,6 +258,22 @@ const ConsensusVAlpha4 = ConsensusVersion("alpha4")
 // ConsensusVAlpha5 uses the same parameters as ConsensusV36.
 const ConsensusVAlpha5 = ConsensusVersion("alpha5")
 
+// ConsensusVFnet1 is the genesis protocol for AF's FNet, based on ConsensusV39
+// with incentives (payouts/challenges) and TEAL v11 enabled.
+const ConsensusVFnet1 = ConsensusVersion("fnet1")
+
+// ConsensusVFnet2 guards against a block-opcode change the fnet1 client did not
+// support; same parameters as fnet1.
+const ConsensusVFnet2 = ConsensusVersion("fnet2")
+
+// ConsensusVFnet3 disables challenges; without heartbeats, participating
+// accounts were being evicted.
+const ConsensusVFnet3 = ConsensusVersion("fnet3")
+
+// ConsensusVFnet4 re-enables challenges and brings heartbeats; upgrades to
+// ConsensusV40.
+const ConsensusVFnet4 = ConsensusVersion("fnet4")
+
 // ConsensusVFnet5 is the protocol AF's FNet runs, with the same parameters as
 // ConsensusV42. It extends ConsensusV41 and restates the v42 changes rather than
 // deriving from v42, so that fnet5 remains pinned to the values FNet runs with.
